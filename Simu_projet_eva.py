@@ -356,7 +356,7 @@ def generate_tasks(kind, rep, probas):
 
 
 def _collect_and_print(tasks, show_table=True,
-                       file='last_simu.txt',
+                       file=None,
                        read_file=None,
                        **kwargs):
     """Collect and print tasks, kwargs is passed to sinter.collect."""
@@ -370,9 +370,12 @@ def _collect_and_print(tasks, show_table=True,
             print('Create a new data file')
             kwargs = dict(num_workers=8, save_resume_filepath=read_file, max_shots=nb_shots, max_errors=1000,
                           tasks=tasks, decoders=['pymatching'], print_progress=True) | kwargs
-    else:
+    elif file is not None:
         print('Create a new data file')
         kwargs = dict(num_workers=8, save_resume_filepath=file, max_shots=nb_shots, max_errors=1000,
+                      tasks=tasks, decoders=['pymatching'], print_progress=True) | kwargs
+    else:
+        kwargs = dict(num_workers=8, max_shots=nb_shots, max_errors=1000,
                       tasks=tasks, decoders=['pymatching'], print_progress=True) | kwargs
     # ,progress_callback=myfunction can be added
     # Collect the samples (takes a few minutes).
@@ -452,6 +455,6 @@ def surface_code_scaling(probas, kind='x', rep=nbr_cycle, filtered=True):
 # Let me know if you need any new feature
 if __name__ == '__main__':
     # Reminder that
-    p_H, p_idle, pCNOT, p_reset, p_mes = 1e-3, 1e-4, 1e-3, 1e-3, 1e-2
+    p_H, p_idle, pCNOT, p_reset, p_mes = 1e-3, 1e-4, 1e-3, 1e-3, 2e-2
     probas = Probas(p_H, p_idle, 0, pCNOT, p_reset, p_mes, 0)
     surface_code_scaling(probas)

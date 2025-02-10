@@ -441,8 +441,8 @@ def surface_code_scaling(probas, kind='x', rep=nbr_cycle, filtered=True):
     """Code de surface normal."""
     samples = _collect_and_print(generate_tasks(kind, rep, probas))
     # Plot the logical error rate per cycle
-    _plot_per_round(samples, title=r"  ",
-                    filename="surface_code_threshold_per_round" + kind + ".pdf", filtered=filtered)
+    _plot_per_round(
+        samples, title=r"$p_H=$"f"{probas[0]}"r", $p_{\text{idle}}=$"f"{probas[1]}"r", $p_{\text{CNOT}}=$"f"{probas[3]}"r",$p_{\text{reset}}=$"f"{probas[4]}"r", $p_{\text{mes}}=$"f"{probas[5]}", filtered=filtered)
 
 
 # %% Partie exécutable

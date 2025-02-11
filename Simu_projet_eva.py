@@ -15,6 +15,7 @@ import os
 import stim
 import sinter
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 from IPython.display import clear_output
 from Coordinates import Coord, SPLIT_DIST
@@ -392,6 +393,23 @@ def _collect_and_print(tasks, show_table=True,
     return samples
 
 
+def _collect(tasks, file=None, **kwargs):
+    """Collect  tasks, kwargs is passed to sinter.collect."""
+    nb_shots = 3_000_000
+    if file is not None:
+        print('This data file already exist')
+        kwargs = dict(num_workers=8, save_resume_filepath=file, max_shots=nb_shots, max_errors=1000,
+                      tasks=tasks, decoders=['pymatching'], print_progress=True) | kwargs
+    else:
+        print('Create a new data file')
+        kwargs = dict(num_workers=4, save_resume_filepath=file, max_shots=nb_shots, max_errors=1000,
+                      tasks=tasks, decoders=['pymatching'], print_progress=True) | kwargs
+    # ,progress_callback=myfunction can be added
+    # Collect the samples (takes a few minutes).
+    samples = sinter.collect(**kwargs)
+    return (samples)
+
+
 def _plot_per_round(samples: list[sinter.TaskStats],
                     x_axis='d', x_label="Distance", label="d={d}",
                     title="Surface code", ylim=None, filename=None, filtered=False, rep=nbr_cycle):
@@ -445,8 +463,55 @@ def surface_code_scaling(probas, kind='x', rep=nbr_cycle, filtered=True):
         samples, title=r"$p_H=$"f"{probas[0]}"r", $p_{\text{idle}}=$"f"{probas[1]}"r", $p_{\text{CNOT}}=$"f"{probas[3]}"r",$p_{\text{reset}}=$"f"{probas[4]}"r", $p_{\text{mes}}=$"f"{probas[5]}", filtered=filtered)
 
 
+def multiple_parameter_plot(list_probas, kind='x', rep=nbr_cycle, filtered=True):
+    """Put several set of parameters on the same plot."""
+    fig, ax = plt.subplots(1, 1)
+    x_axis = 'd'
+    x_label = "Distance"
+    # Define a list of linestyles to cycle through
+    linestyles = ['blue', 'orange', 'green', 'red', 'purple']
+    # Keep track of the linestyle index
+    linestyle_index = 0
+    for probas in list_probas:
+        linestyle = linestyles[linestyle_index % len(linestyles)]
+        linestyle_index += 1  # Increment the index
+        samples = _collect(generate_tasks(kind, rep, probas))
+        if filtered:
+            sinter.plot_error_rate(
+                ax=ax,
+                stats=samples,
+                filter_func=lambda stat: (stat_error(stat.errors/stat.shots, stat.shots, rep=stat.json_metadata['k']) < to_error_per_round(
+                    stat.errors/stat.shots, stat.json_metadata['k'])/4),
+                plot_args_func=lambda index, curve_id: {
+                    'color': linestyle, 'marker': 'o', 'label': f"({probas[0]},{probas[1]},{probas[3]},{probas[4]},{probas[5]})"},
+                x_func=lambda stat: stat.json_metadata[x_axis],
+                failure_units_per_shot_func=lambda stats: stats.json_metadata['k']
+                # highlight_max_likelihood_factor = 1
+            )
+        else:
+            sinter.plot_error_rate(
+                ax=ax,
+                stats=samples,
+                x_func=lambda stat: stat.json_metadata[x_axis],
+                plot_args_func=lambda index, curve_id: {
+                    'color': linestyle, 'marker': 'o', 'label': f"({probas[0]},{probas[1]},{probas[3]},{probas[4]},{probas[5]})"},
+                failure_units_per_shot_func=lambda stats: stats.json_metadata['k']
+                # highlight_max_likelihood_factor = 1
+            )
+
+    ax.loglog()
+    ax.grid()
+    ax.set_title(
+        r"Logical error probability for different $(p_H,p_{\text{idle}},p_{\text{CNOT}},p_{\text{reset}},p_{\text{mes}})$")
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(r"$P_L$")
+    ax.legend()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.show()
+
+
 # %% Partie exécutable
-# Hello Eva ! to use this fule you can adjust the parameters of the different noise right below (for
+# Hello Eva ! to use this file you can adjust the parameters of the different noise right below (for
 # the moment I fixed them at a first guess) and then you can run the file.
 # It will give you a plot of the logical error rate per round of error correction as a function of
 # the distance.
@@ -455,6 +520,12 @@ def surface_code_scaling(probas, kind='x', rep=nbr_cycle, filtered=True):
 # Let me know if you need any new feature
 if __name__ == '__main__':
     # Reminder that
-    p_H, p_idle, pCNOT, p_reset, p_mes = 1e-3, 1e-4, 1e-3, 1e-3, 2e-2
+    p_H, p_idle, pCNOT, p_reset, p_mes = 1e-3, 1e-4, 1e-2, 1e-3, 2e-2
     probas = Probas(p_H, p_idle, 0, pCNOT, p_reset, p_mes, 0)
-    surface_code_scaling(probas)
+    probas1 = Probas(1e-3, 1e-4, 0, 2e-3, 1e-3, 2e-2, 0)
+    probas2 = Probas(1e-3, 1e-4, 0, 2e-3, 1e-3, 1e-2, 0)
+    probas3 = Probas(1e-3, 1e-4, 0, 5e-3, 1e-3, 1e-2, 0)
+    probas4 = Probas(1e-3, 1e-4, 0, 5e-3, 1e-3, 2e-2, 0)
+    list_probas = [probas1, probas2, probas3, probas4]
+    multiple_parameter_plot(list_probas)
+    # surface_code_scaling(probas)
